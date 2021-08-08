@@ -18,7 +18,7 @@ update_C_direct <- function(M, G_old, beta, eta=1e-16) {
 
 ## solving C by minimizing an auxiliary function
 # standalone function to be called from outside
-update_C_auxiliary <= function(C_old, M, G_old, beta) {
+update_C_auxiliary <- function(C_old, M, G_old, beta) {
   
   C_new = matrix(0, nrow(C_old), ncol(C_old)) 
   
@@ -76,7 +76,7 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
   G_new = matrix(0, n_genes, n_cell_types)
   
   for (j in 1:n_genes) {
-    if (j <= n_markers) {
+    if (j in n_markers) {
     
       G_new[j, ] = (M[j, ] %*% t(C_new) + alpha * G_0[j, ] %*% V) %*%
         solve(CCt + alpha * V + xi * V_c)
