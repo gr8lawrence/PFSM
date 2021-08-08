@@ -134,4 +134,30 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
   
 }
 
-update_G_auxiliary_vec
+# matrix level update for G
+update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types) {
+  
+}
+
+# vector level update for G
+update_G_auxiliary_vec <- function(g_old, m_j, C_new, gamma_j, V, alpha, xi) {
+  
+  # dimension
+  n_cell_types = length(g_old) 
+  
+  # constants
+  V_c = diag(1, n_cell_types, n_cell_types) - V
+  numerator = m_j %*% t(C_new) + alpha * gamma_j %*% V
+  denominator = g_old %*% (C_new %*% t(C_new) + alpha * V + xi * V_c)
+  
+  # update G
+  g_new = vector(mode="numeric", length=n_cell_types)
+  for (r in 1:n_cell_types) {
+    
+    g_new[r] = g_old[r] * (numerator[r]/denominator[r])
+    
+  }
+  
+  return(g_new)
+  
+}
