@@ -85,12 +85,29 @@ update_C_auxiliary_vec <- function(c_old, m, G_old, beta) {
 
 ## the following are for updating G
 # main update function
-update_G <- function(M, G_old, C_old, beta, method) {
+update_G <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
   
   if (method == 'direct') {
-   
+    G_new = update_G_direct(
+      M=M, 
+      C_new=C_new, 
+      G_0=G_0, 
+      alpha=alpha, 
+      xi=xi, 
+      n_markers=n_markers, 
+      n_good_cell_types=n_good_cell_types
+    )
   } else if (method == 'auxiliary') {
-   
+    G_new = update_G_auxiliary(
+      G_old=G_old, 
+      M=M, 
+      C_new=C_new, 
+      G_0=G_0, 
+      n_markers=n_markers, 
+      n_good_cell_types=n_good_cell_types, 
+      alpha=alpha, 
+      xi=xi
+    )
   } else {
     stop("Method must be either 'direct' or 'auxiliary'.")
   }
@@ -125,7 +142,7 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
       
     } else {
       
-      G_new[j, ] = (M[j, ] %*% t(C_new)) %*% solve(CCt + alpha * I_p) 
+      G_new[j, ] = (M[j, ] %*% t(C_new)) %*% solve(CCt + xi * I_p) 
       
     }
   }
@@ -135,20 +152,74 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
 }
 
 # matrix level update for G
-update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types) {
+update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
+  
+  # dimension
+  n_genes = nrow(M)
+  n_new_genes = n_genes - n_markers
+  n_cell_types = nrow(C_new)
+  n_bad_cell_types = n_cell_types - n_good_cell_types
+  
+  # constants
+  I_p = diag(1, n_cell_types, n_cell_types)
+  V_j = diag(c(rep(1, n_good_cell_types), rep(0, n_bad_cell_types)))
+  V_j_c = I_p - V_j
+  CCt = C_new %*% t(C_new) 
+  
+  # update G 
+  G_new = matrix(0, n_genes, n_cell_types)
+  
+  for (j in 1:n_genes) {
+    if (j <= n_markers) {
+      
+      # V_j is V_j
+      G_new[j, ] = update_G_auxiliary_vec(
+        g_old=G_old[j, ], 
+        m_j=M[j, ], 
+        C_new=C_new, 
+        gamma_j=G_0[j, ], 
+        V=V_j, 
+        V_c=V_j_c, 
+        alpha=alpha, 
+        xi=xi, 
+        CCt=CCt
+      )
+      
+    } else {
+      
+      # V_j is 0
+      G_new[j, ] = update_G_auxiliary_vec(
+        g_old=G_old[j, ], 
+        m_j=M[j, ], 
+        C_new=C_new, 
+        gamma_j=G_0[j, ], 
+        V=0, 
+        V_c=I_p, 
+        alpha=alpha, 
+        xi=xi, 
+        CCt=CCt
+      )
+      
+    }
+  }
+  
+  return(G_new)
   
 }
 
 # vector level update for G
-update_G_auxiliary_vec <- function(g_old, m_j, C_new, gamma_j, V, alpha, xi) {
+update_G_auxiliary_vec <- function(g_old, m_j, C_new, gamma_j, V, V_c, alpha, xi, CCt) {
   
   # dimension
   n_cell_types = length(g_old) 
   
   # constants
-  V_c = diag(1, n_cell_types, n_cell_types) - V
+  # V_c = diag(1, n_cell_types, n_cell_types) - V
+  # numerator = m_j %*% t(C_new) + alpha * gamma_j %*% V
+  # denominator = g_old %*% (C_new %*% t(C_new) + alpha * V + xi * V_c)
+  
   numerator = m_j %*% t(C_new) + alpha * gamma_j %*% V
-  denominator = g_old %*% (C_new %*% t(C_new) + alpha * V + xi * V_c)
+  denominator = g_old %*% (CCt + alpha * V + xi * V_c)
   
   # update G
   g_new = vector(mode="numeric", length=n_cell_types)
