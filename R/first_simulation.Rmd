@@ -7,7 +7,7 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-pacman::p_load(tidyverse)
+pacman::p_load(tidyverse, stringr)
 source("./core_algorithm_functions.R")
 source("./matrix_initiation_functions.R")
 ```
@@ -203,6 +203,12 @@ results %>%
   ggplot(aes(x=auxiliary_C_residual)) + 
   geom_density(col="blue") +
   geom_rug()
+
+results %>% 
+  select(direct_G_residual, auxiliary_G_residual) %>% 
+  pivot_longer(cols=c(direct_G_residual, auxiliary_G_residual), names_to="Method", values_to="Residual") %>% 
+  mutate(Method = str_sub(Method, 1, 3)) 
+  
 ```
 
 ### Initial Value Effects
