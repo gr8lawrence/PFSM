@@ -4,7 +4,7 @@
 ## G_init: initial value for G
 ## alpha, xi, beta: cross-validated hyperparameters for penalization
 
-source("./core_update_functions.R")
+source("./core_update_functions_new.R")
 
 PSMF_solve <- function(M, G0, G_init, C_init=NULL, n_markers, n_good_cell_types, alpha, xi, beta, max_iter=1000, epsilon, method) {
   
