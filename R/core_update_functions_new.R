@@ -8,8 +8,7 @@ update_C <- function(M, G_old, C_old, beta, method) {
     C_new = update_C_direct(
       M=M,
       G_old=G_old,
-      beta=beta,
-      eta=eta
+      beta=beta
     )
   } else if (method == 'auxiliary') {
     C_new = update_C_auxiliary(
@@ -27,12 +26,12 @@ update_C <- function(M, G_old, C_old, beta, method) {
 }
 
 # two methods of update
-update_C_direct <- function(M, G_old, beta, eta) {
+update_C_direct <- function(M, G_old, beta) {
   
   # dimension 
-  n_cell_types = nrow(G_old) 
+  n_cell_types = ncol(G_old) 
   n_subjects = ncol(M)
-  
+
   # update C directly
   C_new = solve(t(G_old) %*% G_old + 
                   beta * matrix(1, n_cell_types, n_cell_types)) %*%
@@ -63,7 +62,7 @@ update_C_auxiliary <- function(C_old, M, G_old, beta) {
 
 ## the following are for updating G
 # main update function
-update_G <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
+update_G <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi, method) {
   
   if (method == 'direct') {
     G_new = update_G_direct(
@@ -130,7 +129,7 @@ update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_type
   # constants
   I_p = diag(1, n_cell_types, n_cell_types)
   V = diag(c(rep(1, n_good_cell_types), rep(0, n_bad_cell_types)))
-  V_c = I_p - V_j
+  V_c = I_p - V
   CCt = C_new %*% t(C_new) 
   G_old_known = G_old[1:n_markers, ]
   G_old_new_genes = G_old[(n_markers + 1):n_genes, ]

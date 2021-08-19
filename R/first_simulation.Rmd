@@ -1,0 +1,303 @@
+---
+title: "First Simulations on New Algorithm"
+author: "Tianyi Liu"
+date: "8/19/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+pacman::p_load(tidyverse)
+source("./core_algorithm_functions.R")
+source("./matrix_initiation_functions.R")
+```
+
+## Simulation Setups
+
+ * Total number of genes: 20
+ * Total number of cell types:5
+ * Total number of subjects: 50
+ * Total number of known genes: 12
+ * Total number of good (known) cell types: 4
+ 
+    * _Note: "good" means those cell types able to be sequenced_
+    
+ To simulate very nice errors, we just restrain each error term between $10^{-5}$ to $10^{-7}$ (basically no errors).
+
+```{r}
+## set a seed
+set.seed(100)
+
+## constants
+n_genes <- 20
+n_cell_types <- 5
+n_subjects <- 50
+n_known_genes <- 12
+n_good_cell_types <- 4
+
+## generate a G
+G_true <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+
+## generate a C
+C_true <- get_C(n_cell_types, n_subjects)
+
+## generate an error matrix
+E <- matrix(runif(n_genes * n_subjects), n_genes, n_subjects)
+
+## generate an M
+M <- G_true %*% C_true + E  
+
+## get G0 from G
+G0 <- matrix(0L, n_genes, n_cell_types)
+G0[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cell_types]
+```
+
+For the penalty, we will use values such that the result will be closed to what we wanted:
+
+  * $\alpha = 200$
+  * $\xi = 10$
+  * $\beta = 200$
+  
+```{r}
+alpha <- 200
+xi <- 10
+beta <- 200
+```
+
+### Method Comparison
+To run the algorithm, we use both `direct` and `auxiliary` methods and compare their results. We begin with the `direct` method:
+```{r}
+G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+C_init <- get_C(n_cell_types, n_subjects)
+
+solve1 <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha, 
+  xi=xi, 
+  beta=beta,
+  eps=1e-5, 
+  method='direct')
+
+solve2 <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha, 
+  xi=xi, 
+  beta=beta,
+  eps=1e-5, 
+  method='auxiliary')
+
+norm(solve1$G_hat - solve2$G_hat, type="F")
+norm(solve1$C_hat - solve2$C_hat, type="F")
+
+norm(solve1$G_hat - G_true, type="F")
+norm(solve2$G_hat - G_true, type="F")
+norm(solve1$C_hat - C_true, type="F")
+norm(solve2$C_hat - C_true, type="F")
+
+plot(c(solve1$G_hat), c(solve2$G_hat))
+plot(c(solve1$C_hat), c(solve2$C_hat))
+
+plot(solve1$res_vec)
+plot(solve2$res_vec)
+```
+
+Now we run 100 different initial values
+```{r, message=FALSE, warning=FALSE}
+n_sim <- 100
+
+## initiate result data frame
+results <- tibble(
+  two_method_G_difference = rep(NaN, n_sim), 
+  two_method_C_difference = rep(NaN, n_sim), 
+  direct_G_residual = rep(NaN, n_sim), 
+  auxiliary_G_residual = rep(NaN, n_sim), 
+  direct_C_residual = rep(NaN, n_sim), 
+  auxiliary_C_residual = rep(NaN, n_sim), 
+)
+
+## use the same Ms to compare two methods, but simulate a new M every single time
+for (i in 1:n_sim) {
+  
+  G_true <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+  C_true <- get_C(n_cell_types, n_subjects) 
+  E <- matrix(runif(n_genes * n_subjects), n_genes, n_subjects) 
+  M <- G_true %*% C_true + E  
+  G0 <- matrix(0L, n_genes, n_cell_types) 
+  G0[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cell_types]
+  
+  G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+  C_init <- get_C(n_cell_types, n_subjects)
+
+  solve1 <- PSMF_solve(
+    M=M, 
+    G_0=G0, 
+    G_init=G_init, 
+    C_init=C_init,
+    n_markers=n_known_genes, 
+    n_good_cell_types=n_good_cell_types, 
+    alpha=alpha, 
+    xi=xi, 
+    beta=beta,
+    eps=1e-5, 
+    method='direct')
+
+  solve2 <- PSMF_solve(
+    M=M, 
+    G_0=G0, 
+    G_init=G_init, 
+    C_init=C_init,
+    n_markers=n_known_genes, 
+    n_good_cell_types=n_good_cell_types, 
+    alpha=alpha, 
+    xi=xi, 
+    beta=beta,
+    eps=1e-5, 
+    method='auxiliary')
+  
+  results$two_method_G_difference[i] <- norm(solve1$G_hat - solve2$G_hat, type="F")
+  results$two_method_C_difference[i] <- norm(solve1$C_hat - solve2$C_hat, type="F")
+
+  results$direct_G_residual[i] <- norm(solve1$G_hat - G_true, type="F")
+  results$auxiliary_G_residual[i] <- norm(solve2$G_hat - G_true, type="F")
+  results$direct_C_residual[i] <- norm(solve1$C_hat - C_true, type="F")
+  results$auxiliary_C_residual[i] <- norm(solve2$C_hat - C_true, type="F")
+  
+}
+
+results %>% 
+  ggplot(aes(x=two_method_G_difference)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results %>% 
+  ggplot(aes(x=two_method_C_difference)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results %>% 
+  ggplot(aes(x=direct_G_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results %>% 
+  ggplot(aes(x=auxiliary_G_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results %>% 
+  ggplot(aes(x=direct_C_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results %>% 
+  ggplot(aes(x=auxiliary_C_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+```
+
+### Initial Value Effects
+The last thing we want to look at is how variable the results can be using different initial values:
+```{r, message=FALSE, warning=FALSE}
+n_initial_values <- 20
+
+## initiate another result data frame
+results2 <- tibble(
+  two_method_G_difference = rep(NaN, n_initial_values), 
+  two_method_C_difference = rep(NaN, n_initial_values), 
+  direct_G_residual = rep(NaN, n_initial_values), 
+  auxiliary_G_residual = rep(NaN, n_initial_values), 
+  direct_C_residual = rep(NaN, n_initial_values), 
+  auxiliary_C_residual = rep(NaN, n_initial_values), 
+)
+
+## use one true M
+G_true <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+C_true <- get_C(n_cell_types, n_subjects) 
+E <- matrix(runif(n_genes * n_subjects), n_genes, n_subjects) 
+M <- G_true %*% C_true + E  
+
+for (i in 1:n_initial_values) {
+
+  G0 <- matrix(0L, n_genes, n_cell_types) 
+  G0[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cell_types]
+  
+  G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+  C_init <- get_C(n_cell_types, n_subjects)
+
+  solve1 <- PSMF_solve(
+    M=M, 
+    G_0=G0, 
+    G_init=G_init, 
+    C_init=C_init,
+    n_markers=n_known_genes, 
+    n_good_cell_types=n_good_cell_types, 
+    alpha=alpha, 
+    xi=xi, 
+    beta=beta,
+    eps=1e-5, 
+    method='direct')
+
+  solve2 <- PSMF_solve(
+    M=M, 
+    G_0=G0, 
+    G_init=G_init, 
+    C_init=C_init,
+    n_markers=n_known_genes, 
+    n_good_cell_types=n_good_cell_types, 
+    alpha=alpha, 
+    xi=xi, 
+    beta=beta,
+    eps=1e-5, 
+    method='auxiliary')
+  
+  results2$two_method_G_difference[i] <- norm(solve1$G_hat - solve2$G_hat, type="F")
+  results2$two_method_C_difference[i] <- norm(solve1$C_hat - solve2$C_hat, type="F")
+
+  results2$direct_G_residual[i] <- norm(solve1$G_hat - G_true, type="F")
+  results2$auxiliary_G_residual[i] <- norm(solve2$G_hat - G_true, type="F")
+  results2$direct_C_residual[i] <- norm(solve1$C_hat - C_true, type="F")
+  results2$auxiliary_C_residual[i] <- norm(solve2$C_hat - C_true, type="F")
+  
+}
+
+results2 %>% 
+  ggplot(aes(x=two_method_G_difference)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results2 %>% 
+  ggplot(aes(x=two_method_C_difference)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results2 %>% 
+  ggplot(aes(x=direct_G_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results2 %>% 
+  ggplot(aes(x=auxiliary_G_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results2 %>% 
+  ggplot(aes(x=direct_C_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+
+results2 %>% 
+  ggplot(aes(x=auxiliary_C_residual)) + 
+  geom_density(col="blue") +
+  geom_rug()
+```
+
