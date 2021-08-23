@@ -119,7 +119,7 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
 # updating G using the auxiliary function that does not require breaking up the G matrix 
 # using element-wise product in place of V
 
-update_G_auxiliary_2 <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
+update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
   
   # dimension
   n_genes = nrow(M)
