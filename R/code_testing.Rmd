@@ -1,0 +1,84 @@
+---
+title: "Testing My Functions"
+author: "Tianyi Liu"
+date: "8/20/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+set.seed(100)
+source("./core_update_functions_new.R")
+source("./test_functions.R")
+source("./matrix_initiation_functions.R")
+```
+
+We use very simple settings:
+
+  * $M$: $3 \times 4$
+  * $G$: $3 \times 3$
+  * $C$: $3 \times 4$
+  * Number of subjects: 4
+  * Total genes and cell types: 3
+  * Known genes: 2
+  * Known cell types: 2
+
+First, we get an $M$ from a pair of (completely random) $G$ and $C$:
+```{r}
+G <- matrix(rchisq(9, df=2), 3, 3)
+G_0 <- matrix(c(1, 1, 0, 1, 1, 0, 0, 0, 0), 3, 3, byrow=TRUE) * G
+C <- get_C(3, 4)
+
+M <- G %*% C
+
+M
+```
+
+We check $G$ first
+```{r}
+## update G
+G_direct_real <- update_G_direct(
+  M, C, G_0, alpha=200, xi=10, 2, 2
+)
+
+G_direct_test <- update_G_direct_test(
+  M, C, G_0, alpha=200, xi=10, 2, 2
+)
+
+all.equal(G_direct_real, G_direct_test)
+
+G_auxiliary_real <- update_G_auxiliary_2(
+  G, M, C, G_0, alpha=200, xi=10, 2, 2
+)
+
+G_auxiliary_test <- update_G_auxiliary_test(
+  G, M, C, G_0, alpha=200, xi=10, 2, 2
+)
+
+all.equal(G_direct_real, G_direct_test)
+```
+
+Now we check $C$:
+```{r}
+## update C
+C_direct_real <- update_C_direct(
+  M, G, beta=2000
+)
+
+C_direct_test <- update_C_direct_test(
+  M, G, beta=2000
+)
+
+all.equal(C_direct_real, C_direct_test)
+
+C_auxiliary_real <- update_C_auxiliary(
+  C, M, G, beta=2000
+)
+
+C_auxiliary_test <- update_C_auxiliary_test(
+  C, M, G, beta=2000
+)
+
+all.equal(C_auxiliary_real, C_auxiliary_test)
+```
+

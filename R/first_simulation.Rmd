@@ -59,16 +59,79 @@ For the penalty, we will use values such that the result will be closed to what 
   * $\beta = 200$
   
 ```{r}
-alpha <- 200
+alpha <- 200000
 xi <- 10
-beta <- 200
+beta <- 200000
 ```
+
 
 ### Method Comparison
 To run the algorithm, we use both `direct` and `auxiliary` methods and compare their results. We begin with the `direct` method:
 ```{r}
 G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
 C_init <- get_C(n_cell_types, n_subjects)
+
+alpha1 <- 12
+alpha2 <- 200000
+beta1 <- 2000
+beta2 <- 200000
+
+solve_small <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha1, 
+  xi=xi, 
+  beta=beta1,
+  eps=1e-5, 
+  method='direct')
+
+solve_big <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha2, 
+  xi=xi, 
+  beta=beta2,
+  eps=1e-5, 
+  method='direct')
+
+plot(c(solve_small$G_hat), c(solve_big$G_hat))
+plot(c(solve_small$C_hat), c(solve_big$C_hat))
+
+solve_G_small <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha1, 
+  xi=xi, 
+  beta=beta,
+  eps=1e-5, 
+  method='auxiliary')
+
+solve_G_big <- PSMF_solve(
+  M=M, 
+  G_0=G0, 
+  G_init=G_init, 
+  C_init=C_init,
+  n_markers=n_known_genes, 
+  n_good_cell_types=n_good_cell_types, 
+  alpha=alpha2, 
+  xi=xi, 
+  beta=beta,
+  eps=1e-5, 
+  method='auxiliary')
+
+plot(c(solve_G_small$G_hat), c(solve_G_big$G_hat))
 
 solve1 <- PSMF_solve(
   M=M, 

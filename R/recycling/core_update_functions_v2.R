@@ -116,7 +116,41 @@ update_G_direct <- function(M, C_new, G_0, alpha, xi, n_markers, n_good_cell_typ
   
 }
 
-# updating G using the auxiliary function that does not require breaking up the G matrix 
+# matrix level update for G
+update_G_auxiliary <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
+  
+  # dimension
+  n_genes = nrow(M)
+  n_new_genes = n_genes - n_markers
+  n_cell_types = nrow(C_new)
+  n_bad_cell_types = n_cell_types - n_good_cell_types
+  
+  # constants
+  I_p = diag(1, n_cell_types, n_cell_types)
+  V = diag(c(rep(1, n_good_cell_types), rep(0, n_bad_cell_types)))
+  V_c = I_p - V
+  CCt = C_new %*% t(C_new) 
+  G_old_known = G_old[1:n_markers, ]
+  G_old_new_genes = G_old[(n_markers + 1):n_genes, ]
+  
+  # update G (part-by-part)
+  G_new = matrix(0L, n_genes, n_cell_types)
+  # for the part with known markers
+  num_matrix_known = M[1:n_markers, ] %*% t(C_new) + alpha * G_0[1:n_markers, ] %*% V
+  denom_matrix_known = G_old_known %*% (CCt + alpha * V + xi * V_c)
+  G_new[1:n_markers, ] = G_old_known * num_matrix_known/denom_matrix_known
+  # for the part with unknown markers
+  num_matrix_new_genes = M[(n_markers + 1):n_genes, ] %*% t(C_new) 
+  # denom_matrix_new_genes = G_old_new_genes %*% (CCt + alpha * V + xi * V_c)
+  denom_matrix_new_genes = G_old_new_genes %*% (CCt + xi * I_p)
+  G_new[(n_markers + 1):n_genes, ] = G_old_new_genes * num_matrix_new_genes/denom_matrix_new_genes
+  
+  return(G_new)
+  
+}
+
+
+# another function that does not require breaking up the G matrix 
 # using element-wise product in place of V
 
 update_G_auxiliary_2 <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
@@ -148,6 +182,7 @@ update_G_auxiliary_2 <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_ty
   num_matrix= M %*% t(C_new) + alpha * Delta * G_0 
   denom_matrix = G_old %*% C_new %*% t(C_new) + alpha * Delta * G_old  + xi * Delta_c * G_old
   G_new = G_old * num_matrix/denom_matrix
+
   
   return(G_new)
   
