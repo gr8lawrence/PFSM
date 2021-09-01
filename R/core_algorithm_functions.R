@@ -79,7 +79,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init=NULL, n_markers, n_good_cell_types
     
   }
   
-  print(paste0("The algorithm terminated after finishing ", n_iter + 1, " iterations."))
+  #print(paste0("The algorithm terminated after finishing ", n_iter + 1, " iterations."))
   
   return(list(G_hat = G_old, C_hat = C_old, n_iter = n_iter, res_vec = res))
   
