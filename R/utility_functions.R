@@ -10,4 +10,34 @@ PSMF_obj_function <- function(M, G_hat, C_hat, G_0, Delta, alpha, xi, beta) {
     )
 }
 
+## here are some functions that are useful for calculating matrices
+# matrix difference
+matrix_diff <- function(A, B) {
+  return(A - B)
+}
 
+# get the norm of matrix differences
+# A is a list
+matrix_diff_norm <- function(A, B, i) {
+  return(A %>% pluck(i) %>% matrix_diff(B) %>% norm(., type="F"))
+}
+
+# get the max element difference
+get_max_element_diff <- function(A, B, i) {
+  return(A %>% pluck(i) %>% max_element_abs_diff(B))
+}
+
+# get the max column sum difference from 1
+get_max_column_sum_diff_from_one <- function(A, i) {
+  return(A %>% pluck(i) %>% max_column_sum_diff_from_one)
+}
+
+# max absolute diffence of elements
+max_element_abs_diff <- function(A, B) {
+  return(max(abs(A - B)))
+}
+
+# max column sum difference from 1
+max_column_sum_diff_from_one <- function(A) {
+  return(max(abs(colSums(A) - 1)))
+}
