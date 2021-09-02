@@ -24,7 +24,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init=NULL, n_markers, n_good_cell_types
   if (method == 'auxiliary') {
     C_old = C_init
   } else {
-    C_old = matrix(rep(1e-8, n_cell_types * n_subjects), n_cell_types, n_subjects)
+    C_old = matrix(1e-8, n_cell_types, n_subjects)
   }  
   
   # initiate the relative change in norm to infinity

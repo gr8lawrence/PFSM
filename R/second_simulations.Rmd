@@ -11,6 +11,7 @@ rm(list=ls())
 pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr)
 source("./core_algorithm_functions.R")
 source("./matrix_initiation_functions.R")
+source("./utility_functions.R")
 ```
 
 In this file we explore the effect of tuning parameters $\alpha$, $\xi$, $\beta$.
@@ -301,5 +302,25 @@ all_results %>%
   ) +
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
+```
+
+```{r}
+## testing the objective function
+Delta <- rbind(
+    matrix(
+      rep(c(rep(1, n_good_cell_types), rep(0, n_cell_types - n_good_cell_types)), n_known_genes),
+      n_known_genes,
+      n_cell_types,
+      byrow=TRUE 
+    ),
+    matrix(
+      0L,
+      n_genes - n_known_genes,
+      n_cell_types
+    )
+  )
+
+sol_ls <- all_results$solve_direct[[1]]
+PSMF_obj_function(M, sol_ls$G_hat, sol_ls$C_hat, G0, Delta, alpha_v[1], xi_v[1], beta_v[1])
 ```
 
