@@ -50,7 +50,10 @@ update_C_auxiliary <- function(C_old, M, G_old, beta) {
   
   # constants
   num_matrix = t(G_old) %*% M + matrix(beta, n_cell_types, n_subjects)
-  denom_matrix = t(G_old) %*% G_old %*% C_old + matrix(beta, n_cell_types, n_subjects)
+  denom_matrix = t(G_old) %*% G_old %*% C_old + beta * matrix(rep(colSums(C_old), n_cell_types), 
+                                                              n_cell_types, 
+                                                              n_subjects,
+                                                              byrow=TRUE)
   
   # updates (using the element-wise products)
   C_new = C_old * num_matrix/denom_matrix 

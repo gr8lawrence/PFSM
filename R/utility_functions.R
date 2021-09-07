@@ -10,6 +10,28 @@ PSMF_obj_function <- function(M, G_hat, C_hat, G_0, Delta, alpha, xi, beta) {
     )
 }
 
+## return a delta matrix according to 
+get_Delta <- function(n_cell_types, n_good_cell_types, n_genes, n_known_genes) {
+  
+  Delta = rbind(
+    matrix(
+      rep(c(rep(1, n_good_cell_types), rep(0, n_cell_types - n_good_cell_types)), n_known_genes),
+      n_known_genes,
+      n_cell_types,
+      byrow=TRUE 
+    ),
+    matrix(
+      0L,
+      n_genes - n_known_genes,
+      n_cell_types
+    )
+  )
+  
+  return(Delta)
+  
+}
+
+
 ## here are some functions that are useful for calculating matrices
 # matrix difference
 matrix_diff <- function(A, B) {
