@@ -74,11 +74,11 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
 
     if (n_iter %% 2 == 0) {
       # if n_iter is even, update C
-      C_new = update_C(M=M,
-                       G_old=G_old,
-                       C_old=C_old,
-                       beta=beta,
-                       method=method)
+      C_new = update_C_TL(M=M,
+                          G_old=G_old,
+                          C_old=C_old,
+                          beta=beta,
+                          method=method)
 
       # get the relavitve change in norm for C
       C_change = norm(C_new - C_old, type="F")/norm(C_old, type="F")
@@ -91,15 +91,15 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
 
     } else if (n_iter %% 2 == 1) {
       # if n_iter is odd, update G
-      G_new = update_G(G_old=G_old,
-                       M=M,
-                       C_new=C_old,
-                       G_0=G_0,
-                       n_markers=n_markers,
-                       n_good_cell_types=n_good_cell_types,
-                       alpha=alpha,
-                       xi=xi,
-                       method=method)
+      G_new = update_G_TL(G_old=G_old,
+                          M=M,
+                          C_new=C_old,
+                          G_0=G_0,
+                          n_markers=n_markers,
+                          n_good_cell_types=n_good_cell_types,
+                          alpha=alpha,
+                          xi=xi,
+                          method=method)
 
       # get the relavitve change in norm for G
       G_change = norm(G_new - G_old, type="F")/norm(G_old, type="F")
