@@ -48,7 +48,7 @@ update_G_TL <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alph
 
 # Main algorithm ----------------------------------------------------------
 ## this section contains the main body of the algorithm
-PSMF_solve <- function(M, G_0, G_init, C_init=NULL, n_markers, n_good_cell_types, alpha, xi, beta, max_iter=1e5, tol=1e-5, method) {
+PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alpha, xi, beta, max_iter=1e5, tol=1e-5, method) {
 
   # parameters
   n_genes = nrow(M)
@@ -63,11 +63,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init=NULL, n_markers, n_good_cell_types
 
   # initiate matrices
   G_old = G_init
-  if (method == 'auxiliary') {
-    C_old = C_init
-  } else {
-    C_old = matrix(1e-8, n_cell_types, n_subjects)
-  }
+  C_old = C_init
 
   # initiate the relative change in norm to infinity
   C_change = Inf
