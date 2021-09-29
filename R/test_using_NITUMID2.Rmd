@@ -1,0 +1,86 @@
+---
+title: "Comparison between NITUMID and our algorithm"
+author: "Tianyi Liu"
+date: "9/29/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir = "/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
+pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr, NITUMID)
+source("./core_functions.R")
+source("./matrix_initiation_functions.R")
+source("./utility_functions.R")
+```
+
+## NITUMID
+
+NITUMID is a software that uses similar update functions for matrix decomposition. We will test our code by comparing the step-wise updates between our and NITUMID's result.
+
+In NITUMID, `Update_W_Tang` is used to update $\bf{G}$ and `Update_H_Tang` $\bf{C}$.
+
+We need to keep the dimensions small for quick calculation. Using 
+```{r}
+m = 12 # total number of genes
+m_kn = 0 # total number of known genes
+n = 1 # sample size
+p = 5 # number of CTs
+p_good = 0 # non-missing CTs
+```
+
+First, we generate some small batch of G and C:
+```{r}
+set.seed(100)
+#G_itr = get_G(m, n, p, m_kn, p_good) # get an initial G
+G_itr = matrix(abs(rnorm(m * p, 0, 1)), m, p)
+C_itr = get_C(p, n) # get an initial C
+E = matrix(runif(m * n), m, n)
+M = G_itr %*% C_itr + E
+A = matrix(1L, m, p)
+G0 = matrix(0L, m, p)
+G0[1:m_kn, 1:p_good] = G_itr[1:m_kn, 1:p_good]
+```
+
+Then, we need to let $\alpha = 0$ for our algorithm and $\lambda = 0$ for NTUMID.
+
+```{r}
+G_new_Tang = Update_W_Tang(
+  Y = M,
+  W_itr = G_itr,
+  H_itr = C_itr,
+  beta_W = 4,
+  lam_W = 0,
+  A = A
+)
+
+G_new_ours = update_G_TL(
+  G_old = G_itr,
+  M = M,
+  C_new = C_itr,
+  G_0 = G0,
+  n_markers = m_kn,
+  n_good_cell_types = p_good,
+  alpha = 0,
+  xi = 4
+)
+
+
+all.equal(G_new_Tang, G_new_ours)
+
+C_new_Tang = Update_H_Tang(
+  Y = M,
+  W_itr = G_itr,
+  H_itr = C_itr,
+  eta = 10
+)
+
+C_new_ours = update_C_TL(
+  C_old = C_itr,
+  M = M,
+  G_old = G_itr,
+  beta = 10
+)
+
+all.equal(C_new_Tang, C_new_ours)
+```

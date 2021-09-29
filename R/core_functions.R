@@ -1,6 +1,6 @@
 
 # Required packages -------------------------------------------------------
-source("R/utility_functions.R")
+source("utility_functions.R")
 
 # Update functions --------------------------------------------------------
 ## the following functions are for updating the parameters
