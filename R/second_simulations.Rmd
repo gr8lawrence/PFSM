@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr)
-source("./core_algorithm_functions_test.R")
+source("./core_functions.R")
 source("./matrix_initiation_functions.R")
 source("./utility_functions.R")
 ```
@@ -46,43 +46,6 @@ G0[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cel
 # initial values
 G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
 C_init <- get_C(n_cell_types, n_subjects)
-```
-
-```{r}
-## here are some functions that are useful 
-# matrix difference
-matrix_diff <- function(A, B) {
-  return(A - B)
-}
-
-# get the norm of matrix differences
-# A is a list
-matrix_diff_norm <- function(A, B, i) {
-  return(A %>% pluck(i) %>% matrix_diff(B) %>% norm(., type="F"))
-}
-
-# get the max element difference
-get_max_element_diff <- function(A, B, i) {
- return(A %>% pluck(i) %>% max_element_abs_diff(B))
-}
-
-# get the max column sum difference from 1
-get_max_column_sum_diff_from_one <- function(A, i) {
-  return(A %>% pluck(i) %>% max_column_sum_diff_from_one)
-}
-
-# max absolute diffence of elements
-max_element_abs_diff <- function(A, B) {
-  return(max(abs(A - B)))
-}
-
-# max column sum difference from 1
-max_column_sum_diff_from_one <- function(A) {
-  return(max(abs(colSums(A) - 1)))
-}
-
-# max_column_sum_diff_from_one(matrix(rnorm(9), 3, 3))
-# max_column_sum_diff_from_one(matrix(1/3, 3, 3))
 ```
 
 

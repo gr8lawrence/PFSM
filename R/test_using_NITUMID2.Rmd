@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_knit$set(root.dir = "/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
 pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr, NITUMID)
-source("./core_functions.R")
-source("./matrix_initiation_functions.R")
-source("./utility_functions.R")
+source("./00_core_functions.R")
+source("./01_matrix_initiation_functions.R")
+source("./02_utility_functions.R")
 ```
 
 ## NITUMID
