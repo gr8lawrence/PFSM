@@ -11,8 +11,8 @@ update_C_TL <- function(C_old, M, G_old, beta) {
   n_subjects = ncol(C_old)
 
   # constants
-  num_matrix = t(G_old) %*% M + matrix(beta, n_cell_types, n_subjects)
-  denom_matrix = t(G_old) %*% G_old %*% C_old + beta * matrix(rep(colSums(C_old), n_cell_types),
+  num_matrix = t(G_old) %*% M + n_subjects * matrix(beta, n_cell_types, n_subjects)
+  denom_matrix = t(G_old) %*% G_old %*% C_old + n_subjects * beta * matrix(rep(colSums(C_old), n_cell_types),
                                                               n_cell_types,
                                                               n_subjects,
                                                               byrow=TRUE)
@@ -28,6 +28,7 @@ update_G_TL <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alph
 
   # dimension
   n_genes = nrow(M)
+  n_subjects = ncol(M)
   n_new_genes = n_genes - n_markers
   n_cell_types = nrow(C_new)
   n_bad_cell_types = n_cell_types - n_good_cell_types
@@ -38,8 +39,8 @@ update_G_TL <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alph
 
   # update G
   G_new = matrix(0L, n_genes, n_cell_types)
-  num_matrix= M %*% t(C_new) + alpha * Delta * G_0
-  denom_matrix = G_old %*% C_new %*% t(C_new) + alpha * Delta * G_old  + xi * Delta_c * G_old
+  num_matrix= M %*% t(C_new) + n_subjects * alpha * Delta * G_0
+  denom_matrix = G_old %*% C_new %*% t(C_new) + n_subjects * (alpha * Delta * G_old  + xi * Delta_c * G_old)
   G_new = G_old * num_matrix/denom_matrix
 
   return(G_new)
@@ -111,7 +112,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
       res[n_iter + 1] = norm(M - G_old %*% C_old, type="F")
 
     }
-
+    # update the iteration counter
     n_iter = n_iter + 1
 
   }
