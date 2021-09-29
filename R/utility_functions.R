@@ -1,14 +1,21 @@
+
+# Objective function and related ------------------------------------------
+
 ## the following functions are for the utilities of our algorithm
 ## return the objective function calculated from a certain update
 PSMF_obj_function <- function(M, G_hat, C_hat, G_0, Delta, alpha, xi, beta) {
   Delta_c = 1 - Delta
   return(
-    1/2 * norm(M - G_hat %*% C_hat, type="F") + 
-      1/2 * alpha * norm(Delta * G_hat - G_0, type="F") +
-      1/2 * xi * norm(Delta_c * G_hat, type="F") +
-      1/2 * beta * norm(colSums(C_hat) - 1, type="2")
+    1/2 * norm(M - G_hat %*% C_hat, type="F")^2 + 
+      1/2 * alpha * norm(Delta * G_hat - G_0, type="F")^2 +
+      1/2 * xi * norm(Delta_c * G_hat, type="F")^2 +
+      1/2 * beta * norm(colSums(C_hat) - 1, type="2")^2
     )
 }
+
+
+
+# Guide matrix (Delta) and related ----------------------------------------
 
 ## return a delta matrix according to 
 get_Delta <- function(n_cell_types, n_good_cell_types, n_genes, n_known_genes) {
@@ -31,6 +38,24 @@ get_Delta <- function(n_cell_types, n_good_cell_types, n_genes, n_known_genes) {
   
 }
 
+
+# Correlations ------------------------------------------------------------
+
+## get column wise correlation
+colwise_cor <- function(A, B, type="pearson") {
+  
+  require(magrittr)
+  
+  if (ncol(A) != ncol(B) | nrow(A) != nrow(B)) {
+    stop("Two matrices have to be of the same dimension")
+  }
+  
+  return(mapply(function(x, y) {cor(x, y, method=type)}, as.data.frame(A), as.data.frame(B)) %>% mean)
+  
+}
+
+
+# Extra useful metrics ----------------------------------------------------
 
 ## here are some functions that are useful for calculating matrices
 # matrix difference

@@ -58,7 +58,6 @@ update_C_direct_test <- function(M, G_old, beta) {
 ## for auxiliary solutions, we build two functions for element-wise updates (small matrices only)
 update_G_auxiliary_test <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alpha, xi) {
   
-  G_old = G
   
   # dimension
   n_genes = nrow(M)

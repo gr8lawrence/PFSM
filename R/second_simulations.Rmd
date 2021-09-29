@@ -1,5 +1,5 @@
 ---
-title: "Other Simulations"
+title: "Tuning Parameter Effects"
 author: "Tianyi Liu"
 date: "8/26/2021"
 output: html_document
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr)
-source("./core_algorithm_functions.R")
+source("./core_algorithm_functions_test.R")
 source("./matrix_initiation_functions.R")
 source("./utility_functions.R")
 ```
@@ -105,13 +105,15 @@ tune_grid
 ## register parallelization settings
 plan(multisession, workers = 4)
 
+## get Delta
+Delta <- get_Delta(n_cell_types, n_good_cell_types, n_genes, n_known_genes)
+
 ## get results
 results <- tune_grid %>%
-  #filter(row_number() <= 5) %>% 
   mutate(
     solve_direct = future_pmap(list(a = alpha, x = xi, b = beta),
     function(a, x, b) {
-      PSMF_solve(
+      PSMF_solve_test(
         M = M,
         G_0 = G0,
         G_init = G_init,
@@ -122,12 +124,15 @@ results <- tune_grid %>%
         xi = x,
         beta = b,
         eps = 1e-5,
-        method = 'direct'
+        method = 'direct',
+        Delta = Delta,
+        G_true = G_true,
+        C_true = C_true
       )
     }),
     solve_auxiliary = future_pmap(list(a = alpha, x = xi, b = beta),
     function(a, x, b) {
-      PSMF_solve(
+      PSMF_solve_test(
         M = M,
         G_0 = G0,
         G_init = G_init,
@@ -138,13 +143,16 @@ results <- tune_grid %>%
         xi = x,
         beta = b,
         eps = 1e-5,
-        method = 'auxiliary'
+        method = 'auxiliary',
+        Delta = Delta,
+        G_true = G_true,
+        C_true = C_true
       )
     }),
     direct_G_res = map_dbl(.x = solve_direct, ~ matrix_diff_norm(., G_true, 1)),
     auxiliary_G_res = map_dbl(.x = solve_auxiliary, ~ matrix_diff_norm(., G_true, 1)),
     direct_C_res = map_dbl(solve_direct, ~ matrix_diff_norm(., C_true, 2)),
-    auxiliary_C_res = map_dbl(solve_auxiliary, ~ matrix_diff_norm(., C_true, 2))
+    auxiliary_C_res = map_dbl(solve_auxiliary, ~ matrix_diff_norm(., C_true, 2)),
   )
 
 ```
@@ -155,12 +163,62 @@ all_results <- results %>%
     direct_G_max_difference = map_dbl(solve_direct, ~ get_max_element_diff(., G_true, 1)),
     direct_C_max_difference = map_dbl(solve_direct, ~ get_max_element_diff(., C_true, 2)),
     direct_C_col_difference = map_dbl(solve_direct, ~ get_max_column_sum_diff_from_one(., 2)),
+    direct_C_cors = map_dbl(solve_direct, ~ .$C_cors_final),
+    direct_C_spears = map_dbl(solve_direct, ~ .$C_spears_final),
     auxiliary_G_max_difference = map_dbl(solve_auxiliary, ~ get_max_element_diff(., G_true, 1)),
     auxiliary_C_max_difference = map_dbl(solve_auxiliary, ~ get_max_element_diff(., C_true, 2)),
-    auxiliary_C_col_difference = map_dbl(solve_auxiliary, ~ get_max_column_sum_diff_from_one(., 2))
+    auxiliary_C_col_difference = map_dbl(solve_auxiliary, ~ get_max_column_sum_diff_from_one(., 2)),
+    auxiliary_C_cors = map_dbl(solve_auxiliary, ~ .$C_cors_final),
+    auxiliary_C_spears = map_dbl(solve_auxiliary, ~ .$C_spears_final)
   ) 
 
+cors_df <- all_results %>% 
+  select(alpha, xi, beta, direct_C_cors, auxiliary_C_cors) %>% 
+  pivot_longer(cols=c(direct_C_cors, auxiliary_C_cors), names_to="method", values_to="pearson_cor") %>% 
+  mutate(
+    method = sub("\\_.*", "", method)
+  )
+
+spearman_df <- all_results %>% 
+  select(alpha, xi, beta, direct_C_spears, auxiliary_C_spears) %>% 
+  pivot_longer(cols=c(direct_C_spears, auxiliary_C_spears), names_to="method", values_to="spearman_cor") %>% 
+  mutate(
+    method = sub("\\_.*", "", method)
+  )
+
+all_cors_df <- cors_df %>% 
+  left_join(spearman_df, by=c("alpha", "xi", "beta", "method"))
 ```
+
+```{r}
+## plot 0; alpha effect on the correlations
+pdf("./plots/tuning_correlations_effects.pdf")
+all_cors_df %>% 
+  ggplot(aes(x=alpha, y=pearson_cor)) + 
+  geom_point(aes(col=method)) +
+  scale_x_continuous(trans='log2') +
+  facet_grid(xi ~ beta, scales="free") +
+  labs(
+    title="Tuning effects on Pearson correlations; Direct Solution",
+    subtitle="Rows: xi; columns: beta",
+    x="alpha"
+  ) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
+all_cors_df %>% 
+  ggplot(aes(x=alpha, y=spearman_cor)) + 
+  geom_point(aes(col=method)) +
+  scale_x_continuous(trans='log2') +
+  facet_grid(xi ~ beta, scales="free") +
+  labs(
+    title="Tuning effects on Spearman correlations; Direct Solution",
+    subtitle="Rows: xi; columns: beta",
+    x="alpha"
+  ) + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+dev.off()
+```
+
 
 ```{r}
 ## plot 1; alpha effect
@@ -304,7 +362,7 @@ all_results %>%
 dev.off()
 ```
 
-```{r}
+```{r, eval=FALSE}
 ## testing the objective function
 Delta <- rbind(
     matrix(
