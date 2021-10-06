@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 rm(list=ls())
 pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr)
-source("./core_functions.R")
-source("./matrix_initiation_functions.R")
-source("./utility_functions.R")
+source("./00_core_functions.R")
+source("./01_matrix_initiation_functions.R")
+source("./02_utility_functions.R")
 ```
 
 In this file we explore the effect of tuning parameters $\alpha$, $\xi$, $\beta$.
@@ -45,11 +45,12 @@ G0[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cel
 
 # initial values
 G_init <- get_G(n_genes, n_subjects, n_cell_types, n_known_genes, n_good_cell_types)
+G_init[1:n_known_genes, 1:n_good_cell_types] <- G_true[1:n_known_genes, 1:n_good_cell_types]
 C_init <- get_C(n_cell_types, n_subjects)
 ```
 
 
-```{r}
+```{r make.tune.grid}
 alpha_v = 2^seq(2, 20, 2)
 xi_v = 2^seq(-4, 4, 1)
 beta_v = 2^seq(2, 20, 2)
@@ -66,7 +67,11 @@ tune_grid
 
 ```{r}
 ## register parallelization settings
-plan(multisession, workers = 4)
+#plan(multisession, workers = 4)
+
+tune_grid <- tune_grid %>%
+  group_by(alpha, xi) %>% 
+  ungroup()
 
 ## get Delta
 Delta <- get_Delta(n_cell_types, n_good_cell_types, n_genes, n_known_genes)
@@ -74,9 +79,9 @@ Delta <- get_Delta(n_cell_types, n_good_cell_types, n_genes, n_known_genes)
 ## get results
 results <- tune_grid %>%
   mutate(
-    solve_direct = future_pmap(list(a = alpha, x = xi, b = beta),
+    solve_obj = future_pmap(list(a = alpha, x = xi, b = beta),
     function(a, x, b) {
-      PSMF_solve_test(
+      PSMF_solve(
         M = M,
         G_0 = G0,
         G_init = G_init,
@@ -85,37 +90,11 @@ results <- tune_grid %>%
         n_good_cell_types = n_good_cell_types,
         alpha = a,
         xi = x,
-        beta = b,
-        eps = 1e-5,
-        method = 'direct',
-        Delta = Delta,
-        G_true = G_true,
-        C_true = C_true
+        beta = b
       )
     }),
-    solve_auxiliary = future_pmap(list(a = alpha, x = xi, b = beta),
-    function(a, x, b) {
-      PSMF_solve_test(
-        M = M,
-        G_0 = G0,
-        G_init = G_init,
-        C_init = C_init,
-        n_markers = n_known_genes,
-        n_good_cell_types = n_good_cell_types,
-        alpha = a,
-        xi = x,
-        beta = b,
-        eps = 1e-5,
-        method = 'auxiliary',
-        Delta = Delta,
-        G_true = G_true,
-        C_true = C_true
-      )
-    }),
-    direct_G_res = map_dbl(.x = solve_direct, ~ matrix_diff_norm(., G_true, 1)),
-    auxiliary_G_res = map_dbl(.x = solve_auxiliary, ~ matrix_diff_norm(., G_true, 1)),
-    direct_C_res = map_dbl(solve_direct, ~ matrix_diff_norm(., C_true, 2)),
-    auxiliary_C_res = map_dbl(solve_auxiliary, ~ matrix_diff_norm(., C_true, 2)),
+    G_res = map_dbl(.x = solve_obj, ~ matrix_diff_norm(., G_true, 1)),
+    C_res = map_dbl(solve_obj, ~ matrix_diff_norm(., C_true, 2))
   )
 
 ```
@@ -123,183 +102,105 @@ results <- tune_grid %>%
 ```{r}
 all_results <- results %>% 
   mutate(
-    direct_G_max_difference = map_dbl(solve_direct, ~ get_max_element_diff(., G_true, 1)),
-    direct_C_max_difference = map_dbl(solve_direct, ~ get_max_element_diff(., C_true, 2)),
-    direct_C_col_difference = map_dbl(solve_direct, ~ get_max_column_sum_diff_from_one(., 2)),
-    direct_C_cors = map_dbl(solve_direct, ~ .$C_cors_final),
-    direct_C_spears = map_dbl(solve_direct, ~ .$C_spears_final),
-    auxiliary_G_max_difference = map_dbl(solve_auxiliary, ~ get_max_element_diff(., G_true, 1)),
-    auxiliary_C_max_difference = map_dbl(solve_auxiliary, ~ get_max_element_diff(., C_true, 2)),
-    auxiliary_C_col_difference = map_dbl(solve_auxiliary, ~ get_max_column_sum_diff_from_one(., 2)),
-    auxiliary_C_cors = map_dbl(solve_auxiliary, ~ .$C_cors_final),
-    auxiliary_C_spears = map_dbl(solve_auxiliary, ~ .$C_spears_final)
+    G_max_difference = map_dbl(solve_obj, ~ get_max_element_diff(., G_true, 1)),
+    C_max_difference = map_dbl(solve_obj, ~ get_max_element_diff(., C_true, 2)),
+    C_col_difference = map_dbl(solve_obj, ~ get_max_column_sum_diff_from_one(., 2)),
+    C_cors = map_dbl(solve_obj, ~ colwise_cor(.$C_hat, C_true))
   ) 
 
-cors_df <- all_results %>% 
-  select(alpha, xi, beta, direct_C_cors, auxiliary_C_cors) %>% 
-  pivot_longer(cols=c(direct_C_cors, auxiliary_C_cors), names_to="method", values_to="pearson_cor") %>% 
-  mutate(
-    method = sub("\\_.*", "", method)
-  )
-
-spearman_df <- all_results %>% 
-  select(alpha, xi, beta, direct_C_spears, auxiliary_C_spears) %>% 
-  pivot_longer(cols=c(direct_C_spears, auxiliary_C_spears), names_to="method", values_to="spearman_cor") %>% 
-  mutate(
-    method = sub("\\_.*", "", method)
-  )
-
-all_cors_df <- cors_df %>% 
-  left_join(spearman_df, by=c("alpha", "xi", "beta", "method"))
+all_results
 ```
 
+
 ```{r}
-## plot 0; alpha effect on the correlations
+## plot 0; Tuning effect on the correlations
 pdf("./plots/tuning_correlations_effects.pdf")
-all_cors_df %>% 
-  ggplot(aes(x=alpha, y=pearson_cor)) + 
-  geom_point(aes(col=method)) +
+all_results %>% 
+  ggplot(aes(x=alpha, y=C_cors)) + 
+  geom_point() + 
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
   labs(
-    title="Tuning effects on Pearson correlations; Direct Solution",
+    title="Tuning effects on Pearson correlations",
     subtitle="Rows: xi; columns: beta",
+    y="pearson correlation",
     x="alpha"
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-all_cors_df %>% 
-  ggplot(aes(x=alpha, y=spearman_cor)) + 
-  geom_point(aes(col=method)) +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning effects on Spearman correlations; Direct Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) + 
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 ```
 
 
 ```{r}
-## plot 1; alpha effect
-# direct G
+## plot 1; Tuning effect on residuals
+# G
 pdf("./plots/tuning_residual_effects.pdf")
 all_results %>% 
-  ggplot(aes(x=alpha, y=direct_G_res)) + 
+  ggplot(aes(x=alpha, y=G_res)) + 
   geom_point() +
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
   labs(
-    title="Tuning effects; Direct Solution",
+    title="Tuning effects on G residuals",
     subtitle="Rows: xi; columns: beta",
     x="alpha"
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-# auxiliary G
+
+# C
 all_results %>% 
-  ggplot(aes(x=alpha, y=auxiliary_G_res)) + 
+  ggplot(aes(x=alpha, y=C_res)) + 
   geom_point() +
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
   labs(
-    title="Tuning effects; Auxiliary Function Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-# direct C
-all_results %>% 
-  ggplot(aes(x=alpha, y=direct_C_res)) + 
-  geom_point() +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning effects; Direct Solution",
+    title="Tuning effects on C residuals",
     subtitle="Rows: xi; columns: beta",
     x="alpha"
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-# auxiliary C
-all_results %>% 
-  ggplot(aes(x=alpha, y=auxiliary_C_res)) + 
-  geom_point() +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning effects; Auxiliary Function Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+
 dev.off()
 ```
 
 ```{r}
-## plot 2; tuning max element difference effect
-# direct G
+## plot 2; tuning effect on max element differences
+# G
 pdf("./plots/tuning_element_diff_effects.pdf")
 all_results %>% 
-  ggplot(aes(x=alpha, y=direct_G_max_difference)) + 
+  ggplot(aes(x=alpha, y=G_max_difference)) + 
   geom_point() +
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
   labs(
-    title="Tuning max element difference effects; Direct Solution",
+    title="Tuning effect on max element difference of G",
     subtitle="Rows: xi; columns: beta",
     x="alpha"
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-# auxiliary G
+# C
 all_results %>% 
-  ggplot(aes(x=alpha, y=auxiliary_G_max_difference)) + 
+  ggplot(aes(x=alpha, y=C_max_difference)) + 
   geom_point() +
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
   labs(
-    title="Tuning max element difference effects; Auxiliary Function Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
-
-# direct C
-all_results %>% 
-  ggplot(aes(x=alpha, y=direct_C_max_difference)) + 
-  geom_point() +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning max element difference effects; Direct Solution",
+    title="Tuning effect on max element difference of C",
     subtitle="Rows: xi; columns: beta",
     x="alpha"
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-# auxiliary C
-all_results %>% 
-  ggplot(aes(x=alpha, y=auxiliary_C_max_difference)) + 
-  geom_point() +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning max element difference effects; Auxiliary Function Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 ```
 
 ```{r}
+## plot 3; tuning effects on maximum column sum deviation of C from 1
 pdf("./plots/tuning_C_row_sum_diff_from_1.pdf")
-
-# direct C
 all_results %>% 
-  ggplot(aes(x=alpha, y=direct_C_col_difference)) + 
+  ggplot(aes(x=alpha, y=C_col_difference)) + 
   geom_point() +
   scale_x_continuous(trans='log2') +
   facet_grid(xi ~ beta, scales="free") +
@@ -310,18 +211,6 @@ all_results %>%
   ) + 
   theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 
-# auxiliary C
-all_results %>% 
-  ggplot(aes(x=alpha, y=auxiliary_C_col_difference)) + 
-  geom_point() +
-  scale_x_continuous(trans='log2') +
-  facet_grid(xi ~ beta, scales="free") +
-  labs(
-    title="Tuning effects on C max column sum difference from 1; Auxiliary Function Solution",
-    subtitle="Rows: xi; columns: beta",
-    x="alpha"
-  ) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 dev.off()
 ```
 

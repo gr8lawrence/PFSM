@@ -1,8 +1,10 @@
 
 # Required packages -------------------------------------------------------
+
 source("02_utility_functions.R")
 
 # Update functions --------------------------------------------------------
+
 ## the following functions are for updating the parameters
 update_C_TL <- function(C_old, M, G_old, beta) {
 
@@ -48,8 +50,9 @@ update_G_TL <- function(G_old, M, C_new, G_0, n_markers, n_good_cell_types, alph
 }
 
 # Main algorithm ----------------------------------------------------------
+
 ## this section contains the main body of the algorithm
-PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alpha, xi, beta, max_iter=1e5, tol=1e-5, method) {
+PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alpha, xi, beta, max_iter=1e5, tol=1e-5) {
 
   # parameters
   n_genes = nrow(M)
@@ -78,8 +81,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
       C_new = update_C_TL(M=M,
                           G_old=G_old,
                           C_old=C_old,
-                          beta=beta,
-                          method=method)
+                          beta=beta)
 
       # get the relavitve change in norm for C
       C_change = norm(C_new - C_old, type="F")/norm(C_old, type="F")
@@ -99,8 +101,7 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
                           n_markers=n_markers,
                           n_good_cell_types=n_good_cell_types,
                           alpha=alpha,
-                          xi=xi,
-                          method=method)
+                          xi=xi)
 
       # get the relavitve change in norm for G
       G_change = norm(G_new - G_old, type="F")/norm(G_old, type="F")
@@ -122,3 +123,8 @@ PSMF_solve <- function(M, G_0, G_init, C_init, n_markers, n_good_cell_types, alp
   return(list(G_hat = G_old, C_hat = C_old, n_iter = n_iter, res_vec = res))
 
 }
+
+
+# Testing wrapper ---------------------------------------------------------
+
+# PSMF_test <- function()
