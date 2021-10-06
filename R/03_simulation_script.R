@@ -1,0 +1,138 @@
+## This script will interact with the bash scripts to provide flexible way of running simulations
+
+rm(list=ls())
+# Required files ----------------------------------------------------------
+pacman::p_load(tidyverse, digest)
+setwd("/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
+source("./00_core_functions.R")
+source("./01_matrix_initiation_functions.R")
+source("./02_utility_functions.R")
+
+
+# Intake parameters -------------------------------------------------------
+
+## These parameters are taken from the command line
+n = 20
+m = 10
+p = 5
+mkr_ratio = 0.5
+
+alpha = 2^10
+xi = 2^-6
+beta = 2^6
+
+
+# Other parameter constants -----------------------------------------------
+
+## We assume only one cell type is unknown
+n_good_ct = max(1, p - 1)
+
+## We assume each cell type roughly has the same amount of markers
+n_mkrs = max(1, floor((n_good_ct/p) * m))
+
+# Run simulation -------------------------------------------------------
+
+## This section contains the sequence of function(s) that we use to run the simulation
+## Will admit one set of hyperparameters and then run 10 different initial values
+## k is the number of initial values taken
+k = 10
+
+## set seed
+seed = digest::digest2int(paste0(as.character(n), 
+                                 as.character(m),
+                                 as.character(p),
+                                 as.character(k),
+                                 as.character(alpha), 
+                                 as.character(xi), 
+                                 as.character(beta)))
+set.seed(seed)
+
+## get the true G and C
+G_tr = get_G(
+  n_genes = m,
+  n_subjects = n,
+  n_cell_types = p,
+  n_markers = n_mkrs,
+  n_good_cell_types = n_good_ct,
+  marker_ratio = mkr_ratio
+  )
+
+C_tr = get_C(
+  n_cell_types = p,
+  n_subjects = n
+  )
+
+## get true M by perturbing GC a bit
+E_sm = matrix(runif(m * n, 0, 1e-3), m, n)
+M_tr = G_tr %*% C_tr + E_sm 
+
+## get G0
+G0 = matrix(0L, m, p)
+G0[1:n_mkrs, 1:n_good_ct] = G_tr[1:n_mkrs, 1:n_good_ct]
+
+## store the best correlation
+best_cor = 0
+
+## store the best solution
+best_sol = NULL
+
+## store the most correlated C_hat
+best_C_hat = NULL
+
+## run the 10 initial values
+for (i in 1:k) {
+  
+  ## get initial G and C
+  
+  ## for future use
+  ## make sure initial G's fixed part is the same as true G's fixed part
+  # G_it = matrix(abs(rnorm(m * p, 0, max(M_tr))), m, p)
+  # G_it[1:n_mkrs, 1:n_good_ct] = G_tr[1:n_mkrs, 1:n_good_ct]
+  
+  ## if a gene in the fixed part of G is known to be a marker, its expression in the last column of G should be 0
+  # G_it[1:floor(n_mkrs * mkr_ratio), p] = 0
+  # 
+  # C_it = get_C(p, n)
+  
+  G_it = G_tr + matrix(runif(m * p, 0, 1e-4), m, p)
+  C_it = C_tr + matrix(runif(p * n, 0, 1e-4), p, n)
+  
+  ## run the algorithm
+  sol_tmp = PSMF_solve(
+    M = M_tr,
+    G_0 = G0,
+    G_init = G_it,
+    C_init = C_it,
+    n_markers = n_mkrs,
+    n_good_cell_types = n_good_ct,
+    alpha = alpha,
+    xi = xi,
+    beta = beta
+  )
+  
+  ## get the temporary solution
+  C_hat_tmp = sol_tmp$C_hat
+  cor_tmp = colwise_cor(C_hat_tmp, C_tr)
+  
+  ## compare the temporary to the best solution
+  if (abs(cor_tmp) > abs(best_cor)) {
+    
+    best_cor = cor_tmp
+    best_sol = sol_tmp
+    best_C_hat = C_hat_tmp
+    
+  }
+  
+}
+
+## calculate the MSE for the best solution
+#M_hat = best_sol$G_hat %*% best_sol$C_hat
+best_c_MSE = 1/(p * n) * sum((C_tr - best_C_hat)^2)
+
+## store the results
+## result 1: correlation, MSE
+res = c(best_cor, best_c_MSE)
+print(res)
+
+## result 2: the best solution
+print(best_sol$G_hat)
