@@ -4,7 +4,7 @@ rm(list=ls())
 
 # Required files ----------------------------------------------------------
 
-pacman::p_load(tidyverse, digest, foreach)
+pacman::p_load(digest, foreach)
 setwd("/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
 source("./00_core_functions.R")
 source("./01_matrix_initiation_functions.R")
@@ -14,32 +14,32 @@ source("./02_utility_functions.R")
 
 ## Declare takeing in command line arguments
 
-# cmd_args=commandArgs(TRUE)
+cmd_args=commandArgs(TRUE)
 # 
 # ## These parameters are taken from the command line
-# n = as.numeric(cmd_args[1]) # sample size
-# m = as.numeric(cmd_args[2]) # number of genes
+n = as.numeric(cmd_args[1]) # sample size
+m = as.numeric(cmd_args[2]) # number of genes
 
-# alpha = 2^as.numeric(cmd_args[3])
-# xi = 2^as.numeric(cmd_args[4])
-# beta = 2^as.numeric(cmd_args[5])
-# out = cmd_args[6] # output filename
+alpha = 2^as.numeric(cmd_args[3])
+xi = 2^as.numeric(cmd_args[4])
+beta = 2^as.numeric(cmd_args[5])
+out = cmd_args[6] # output filename
 
-# p = 5 # number of cell types
-# mkr_ratio = 0.5 # marker ratio
+p = 5 # number of cell types
+mkr_ratio = 0.5 # marker ratio
 
 ## Fixed parameter values for local debugging
-n = 20
-m = 10
-p = 5
-mkr_ratio = 0.5
-alpha = 2^10
-xi = 2^-6
-beta = 2^6
+# n = 20
+# m = 10
+# p = 5
+# mkr_ratio = 0.5
+# alpha = 2^10
+# xi = 2^-6
+# beta = 2^6
 
 out = "test.rds"
 
-n_run = 10 # 100 total runs for this particular combination of tuning parameters
+n_run = 50 # 100 total runs for this particular combination of tuning parameters
 
 # Other parameter constants -----------------------------------------------
 
