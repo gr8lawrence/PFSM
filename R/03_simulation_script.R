@@ -5,7 +5,7 @@ rm(list=ls())
 # Required files ----------------------------------------------------------
 
 pacman::p_load(digest, foreach)
-setwd("/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
+#setwd("/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
 source("./00_core_functions.R")
 source("./01_matrix_initiation_functions.R")
 source("./02_utility_functions.R")
@@ -15,8 +15,8 @@ source("./02_utility_functions.R")
 ## Declare takeing in command line arguments
 
 cmd_args=commandArgs(TRUE)
-# 
-# ## These parameters are taken from the command line
+
+## These parameters are taken from the command line
 n = as.numeric(cmd_args[1]) # sample size
 m = as.numeric(cmd_args[2]) # number of genes
 
@@ -39,7 +39,7 @@ mkr_ratio = 0.5 # marker ratio
 
 out = "test.rds"
 
-n_run = 50 # 100 total runs for this particular combination of tuning parameters
+n_run = 50 # 50 total runs for this particular combination of tuning parameters
 
 # Other parameter constants -----------------------------------------------
 
