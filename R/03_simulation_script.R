@@ -23,6 +23,7 @@ m = as.numeric(cmd_args[2]) # number of genes
 alpha = 2^as.numeric(cmd_args[3])
 xi = 2^as.numeric(cmd_args[4])
 beta = 2^as.numeric(cmd_args[5])
+# out = paste0("n_", n, "_m_", m, "_alpha_", alpha)
 out = cmd_args[6] # output filename
 
 p = 5 # number of cell types
@@ -36,8 +37,6 @@ mkr_ratio = 0.5 # marker ratio
 # alpha = 2^10
 # xi = 2^-6
 # beta = 2^6
-
-out = "test.rds"
 
 n_run = 50 # 50 total runs for this particular combination of tuning parameters
 

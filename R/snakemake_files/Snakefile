@@ -1,0 +1,10 @@
+configfile: "config.json"
+
+rule all:
+	input: 
+		expand("n_{n}_m_{m}_alpha_{alpha}_xi_{xi}_beta_{beta}.rds", n=config["n"], m=config["m"], alpha=config["alpha"], xi=config["xi"], beta=config["beta"])
+
+rule make_data:
+	output: "n_{n}_m_{m}_alpha_{alpha}_xi_{xi}_beta_{beta}.rds"
+	shell:
+        	"R CMD BATCH --no-save --no-restore '--args {wildcards.n} {wildcards.m} {wildcards.alpha} {wildcards.xi} {wildcards.beta} {output}' 03_simulation_script.R logs/log_n_{wildcards.n}_m_{wildcards.m}_alpha_{wildcards.alpha}_xi_{wildcards.xi}_beta_{wildcards.beta}.Rout"
