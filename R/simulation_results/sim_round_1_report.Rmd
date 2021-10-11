@@ -1,0 +1,63 @@
+---
+title: "Simulation Round 1"
+author: "Tianyi Liu"
+date: "10/7/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R/simulation_results")
+pacman::p_load(tidyverse)
+```
+
+## Snakemake is fabulous!!
+Better spread the words now: https://github.com/mikelove/comp-bio-setup/blob/master/snakemake.md#running-snakemake-across-parameter-values
+
+## Read in data
+```{r read.data}
+load("sim_round_1.RData")
+res <- as_tibble(res) 
+colnames(res) <- c("n", "m", "p", "alpha", "xi", "beta", "run", "cor", "mse")
+res
+```
+
+## Find each run's best result for each combination of "n", "m", and "p"
+```{r subset.res}
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(desc(cor)) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = n, y = cor)) +
+  geom_boxplot()
+```
+
+## Do this again for the round with varying sample size
+```{r vary.samp.size}
+load("sim_round_3.RData")
+res <- as_tibble(res) 
+colnames(res) <- c("n", "m", "p", "alpha", "xi", "beta", "run", "cor", "mse")
+res
+
+res %>% distinct(alpha)
+res %>% distinct(beta)
+
+ggplot(res, aes(x = as.factor(n), y = cor)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(desc(cor)) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(n), y = cor)) +
+  geom_boxplot()
+```
