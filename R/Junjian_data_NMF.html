@@ -251,6 +251,7 @@ get_prop &lt;- function(prop_df) {
   cell_type_names = colnames(prop_real_df)
   
   mat = data.matrix(prop_real_df) %&gt;% t
+  mat = apply(mat, 2, function(x) x/sum(x))
   rownames(mat) = cell_type_names
   colnames(mat) = subject_names
   return(mat)
@@ -267,7 +268,17 @@ bulk_Z0201_mat &lt;- get_bulk(bulk_Z0201)</code></pre>
 <pre class="r"><code>prop_abis_mat &lt;- get_prop(prop_abis)
 prop_lm22_mat &lt;- get_prop(prop_lm22)
 prop_immuno_mat &lt;- get_prop(prop_immunoStates)
-prop_tianyi_mat &lt;- get_prop(prop_tianyi)</code></pre>
+prop_tianyi_mat &lt;- get_prop(prop_tianyi)
+
+print(colSums(prop_tianyi_mat))</code></pre>
+<pre><code>## 3038 3044 3070 3093 3123 3127 3150 3160 3024 3025 3027 3033 3034 3040 3042 3045 
+##    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1 
+## 3055 3063 3078 3100 3115 3134 3152 3154 3170 3172 3174 3197 3218 3228 3023 3039 
+##    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1 
+## 3071 3081 3089 3091 3111 3112 3114 3120 3122 3124 3133 3136 3141 3161 3183 3184 
+##    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1    1 
+## 3206 3221 3223 
+##    1    1    1</code></pre>
 </div>
 <div id="helper-function" class="section level2">
 <h2>Helper Function</h2>
@@ -299,11 +310,78 @@ write_csv(as_tibble(M_hat_lm22), paste(output_dir, &quot;lm22_yhat.csv&quot;, se
 
 ## immunoStates
 M_hat_immuno &lt;- get_M_hat(bulk_nonmkrs_q_mat, prop_immuno_mat)
-write_csv(as_tibble(M_hat_lm22), paste(output_dir, &quot;immunoStates_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_immuno), paste(output_dir, &quot;immunoStates_yhat.csv&quot;, sep=&quot;/&quot;))
 
 ## tianyi
 M_hat_tianyi &lt;- get_M_hat(bulk_nonmkrs_q_mat, prop_tianyi_mat)
-write_csv(as_tibble(M_hat_tianyi), paste(output_dir, &quot;tianyi_yhat.csv&quot;, sep=&quot;/&quot;))</code></pre>
+write_csv(as_tibble(M_hat_tianyi), paste(output_dir, &quot;tianyi_yhat.csv&quot;, sep=&quot;/&quot;))
+
+## get SSE
+get_sse &lt;- function(M, M_hat) {
+  return(round(sum((M - M_hat)^2), 4))
+}
+
+print(c(get_sse(bulk_nonmkrs_q_mat, M_hat_abis), 
+        get_sse(bulk_nonmkrs_q_mat, M_hat_lm22),
+        get_sse(bulk_nonmkrs_q_mat, M_hat_immuno),
+        get_sse(bulk_nonmkrs_q_mat, M_hat_tianyi)))</code></pre>
+<pre><code>## [1] 4870.580 4976.304 4978.843 4918.680</code></pre>
+</div>
+<div id="output-the-rest-of-the-matrices" class="section level2">
+<h2>Output The Rest of The Matrices</h2>
+<pre class="r"><code>output_dir &lt;- &quot;./Real_data/Junjian_01/output_2&quot;
+
+## abis
+M_hat_abis1 &lt;- get_M_hat(bulk_markers_mat, prop_abis_mat)
+M_hat_abis2 &lt;- get_M_hat(bulk_markers_q_mat, prop_abis_mat)
+M_hat_abis3 &lt;- get_M_hat(bulk_nonmkrs_mat, prop_abis_mat)
+M_hat_abis4 &lt;- get_M_hat(bulk_Z0201_mat, prop_abis_mat)
+
+write_csv(as_tibble(M_hat_abis1), paste(output_dir, &quot;abis_markers_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_abis2), paste(output_dir, &quot;abis_markers_q_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_abis3), paste(output_dir, &quot;abis_nonmkrs_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_abis4), paste(output_dir, &quot;abis_Z0201_yhat.csv&quot;, sep=&quot;/&quot;))
+
+## lm22
+M_hat_lm221 &lt;- get_M_hat(bulk_markers_mat, prop_lm22_mat)
+M_hat_lm222 &lt;- get_M_hat(bulk_markers_q_mat, prop_lm22_mat)
+M_hat_lm223 &lt;- get_M_hat(bulk_nonmkrs_mat, prop_lm22_mat)
+M_hat_lm224 &lt;- get_M_hat(bulk_Z0201_mat, prop_lm22_mat)
+
+write_csv(as_tibble(M_hat_lm221), paste(output_dir, &quot;lm22_markers_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_lm222), paste(output_dir, &quot;lm22_markers_q_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_lm223), paste(output_dir, &quot;lm22_nonmkrs_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_lm224), paste(output_dir, &quot;lm22_Z0201_yhat.csv&quot;, sep=&quot;/&quot;))
+
+## immunoStates
+M_hat_immuno1 &lt;- get_M_hat(bulk_markers_mat, prop_immuno_mat)
+M_hat_immuno2 &lt;- get_M_hat(bulk_markers_q_mat, prop_immuno_mat)
+M_hat_immuno3 &lt;- get_M_hat(bulk_nonmkrs_mat, prop_immuno_mat)
+M_hat_immuno4 &lt;- get_M_hat(bulk_Z0201_mat, prop_immuno_mat)
+
+write_csv(as_tibble(M_hat_immuno1), paste(output_dir, &quot;immunoStates_markers_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_immuno2), paste(output_dir, &quot;immunoStates_markers_q_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_immuno3), paste(output_dir, &quot;immunoStates_nonmkrs_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_immuno4), paste(output_dir, &quot;immunoStates_Z0201_yhat.csv&quot;, sep=&quot;/&quot;))
+
+## tianyi
+M_hat_tianyi1 &lt;- get_M_hat(bulk_markers_mat, prop_tianyi_mat)
+M_hat_tianyi2 &lt;- get_M_hat(bulk_markers_q_mat, prop_tianyi_mat)
+M_hat_tianyi3 &lt;- get_M_hat(bulk_nonmkrs_mat, prop_tianyi_mat)
+M_hat_tianyi4 &lt;- get_M_hat(bulk_Z0201_mat, prop_tianyi_mat)
+
+write_csv(as_tibble(M_hat_tianyi1), paste(output_dir, &quot;tianyi_markers_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_tianyi2), paste(output_dir, &quot;tianyi_markers_q_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_tianyi3), paste(output_dir, &quot;tianyi_nonmkrs_yhat.csv&quot;, sep=&quot;/&quot;))
+write_csv(as_tibble(M_hat_tianyi4), paste(output_dir, &quot;tianyi_Z0201_yhat.csv&quot;, sep=&quot;/&quot;))</code></pre>
+<pre class="r"><code>## mean sample-wise correlation
+abis_cor &lt;- colwise_cor(bulk_nonmkrs_q_mat, M_hat_abis)
+lm22_cor &lt;- colwise_cor(bulk_nonmkrs_q_mat, M_hat_lm22)
+immuno_cor &lt;- colwise_cor(bulk_nonmkrs_q_mat, M_hat_immuno)
+tianyi_cor &lt;- colwise_cor(bulk_nonmkrs_q_mat, M_hat_tianyi)
+
+print(c(round(abis_cor, 4), round(lm22_cor, 4), round(immuno_cor, 4), round(tianyi_cor, 4)))</code></pre>
+<pre><code>## [1] 0.9901 0.9899 0.9899 0.9900</code></pre>
 </div>
 
 

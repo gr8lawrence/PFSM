@@ -1,0 +1,154 @@
+---
+title: "Simulation Round 1"
+author: "Tianyi Liu"
+date: "10/14/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_knit$set(root.dir="/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R/simulation_results")
+pacman::p_load(tidyverse)
+```
+
+## Varying Sample Size
+Number of genes = 20; ratio of marker genes = 0.5
+### Read in data
+```{r read.data}
+load("sim_round_4.RData")
+res <- as_tibble(res) 
+colnames(res) <- c("n", "m", "p", "alpha", "xi", "beta", "run", "cor", "mse")
+res
+```
+
+### Find each run's best result for each combination of "n", "m", and "p"
+
+The initial values are chosen not so close to the true value:
+```{r vary.samp.size.cor}
+ggplot(res, aes(x = as.factor(n), y = cor)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(desc(cor)) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(n), y = cor)) +
+  geom_boxplot()
+```
+
+Also, plot the distribution of MSEs:
+```{r vary.samp.size.mse}
+ggplot(res, aes(x = as.factor(n), y = mse)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(mse) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(n), y = mse)) +
+  geom_boxplot()
+```
+
+## Varying Number of Genes
+Sample size = 20; ratio of marker genes = 0.5
+### Read in data
+```{r read.data2}
+load("sim_round_5.RData")
+res <- as_tibble(res) 
+colnames(res) <- c("n", "m", "p", "alpha", "xi", "beta", "run", "cor", "mse")
+res
+```
+
+### Find each run's best result for each combination of "n", "m", and "p"
+
+The initial values are chosen not so close to the true value:
+```{r vary.num.gene.cor}
+ggplot(res, aes(x = as.factor(m), y = cor)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(desc(cor)) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(m), y = cor)) +
+  geom_boxplot()
+```
+
+Also, plot the distribution of MSEs:
+```{r vary.num.gene.mse}
+ggplot(res, aes(x = as.factor(m), y = mse)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(mse) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(m), y = mse)) +
+  geom_boxplot()
+```
+
+## Varying Ratio of Marker Genes
+Number of samples = number of genes = 50
+### Read in data
+```{r read.data3}
+load("sim_round_6.RData")
+res <- as_tibble(res) 
+colnames(res) <- c("n", "m", "p", "alpha", "xi", "beta", "run", "cor", "mse")
+res
+```
+
+The initial values are chosen not so close to the true value:
+```{r vary.ratio.cor}
+ggplot(res, aes(x = as.factor(m), y = cor)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(desc(cor)) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(m), y = cor)) +
+  geom_boxplot()
+```
+
+Also, plot the distribution of MSEs:
+```{r vary.ratio.mse}
+ggplot(res, aes(x = as.factor(m), y = mse)) +
+  geom_boxplot() +
+  facet_grid(alpha ~ beta)
+
+best_res <- res %>% 
+  group_by(n, m, p, run) %>% 
+  arrange(mse) %>% 
+  filter(row_number() == 1) %>% 
+  ungroup() 
+
+best_res
+
+ggplot(best_res, aes(x = as.factor(m), y = mse)) +
+  geom_boxplot()
+```

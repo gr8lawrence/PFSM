@@ -1,0 +1,227 @@
+---
+title: "Analysis of Junjian's Data"
+author: "Tianyi Liu"
+date: "10/05/2021"
+output:
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo=TRUE)
+knitr::opts_knit$set(root.dir="/Users/gr8lawrence/Documents/Dissertation/conv_opt_code/cleaned_algorithm/PFSM/R")
+pacman::p_load(tidyverse, stringr, purrr, furrr, magrittr, nnls)
+source("./00_core_functions.R")
+source("./01_matrix_initiation_functions.R")
+source("./02_utility_functions.R")
+```
+
+## Seed Control
+```{r set.seed}
+set.seed(100)
+```
+
+## Read Data
+We begin with reading in all the bulk, base, and proportion matrices:
+```{r read.data, message=FALSE, warning=FALSE}
+## directory names 
+base_mtx_dir <- "./Real_data/Junjian_01/base_mtx"
+bulk_dir <- "./Real_data/Junjian_01/bulk"
+proportions_dir <- "./Real_data/Junjian_01/proportions"
+output_dir <- "./Real_data/Junjian_01/output"
+
+## all the base matrices
+base_ABIS_logFC_a2s <- read_csv(paste(base_mtx_dir, "ABIS_logFC_a2s.csv", sep="/")) %>% rename(gene=X1)
+base_immunoStates_logFC_a2s <- read_csv(paste(base_mtx_dir, "immunoStates_logFC_a2s.csv", sep="/")) %>% rename(gene=X1)
+base_LM22_logFC_a2s <- read_csv(paste(base_mtx_dir, "LM22_logFC_a2s.csv", sep="/")) %>% rename(gene=X1)
+base_tianyi_logFC_a2s <- read_csv(paste(base_mtx_dir, "tianyi_logFC_a2s.csv", sep="/")) %>% rename(gene=X1)
+
+## all the bulk matrices
+bulk_markers_sd <- read_tsv(paste(bulk_dir, "bulk_markers_sd.txt", sep="/")) %>% rename(gene = GeneSymbol)
+bulk_markers_sd_q <- read_tsv(paste(bulk_dir, "bulk_markers_sd_q.txt", sep="/")) %>% rename(gene = GeneSymbol) 
+bulk_nonmarkers_sd <- read_tsv(paste(bulk_dir, "bulk_nonmkrs_sd.txt", sep="/")) %>% rename(gene = GeneSymbol)
+bulk_nonmarkers_sd_q <- read_tsv(paste(bulk_dir, "bulk_nonmkrs_sd_q.txt", sep="/")) %>% rename(gene = GeneSymbol)
+bulk_Z0201 <- read_tsv(paste(bulk_dir, "Z0201_bulkCIBERSORT_a2s.txt", sep="/")) %>% rename(gene = GeneSymbol)
+
+## all the proportion matrices
+prop_tianyi <- read_csv(paste(proportions_dir, "CIBERSORTx_Job144_Results_tianyi.csv", sep="/")) 
+prop_lm22 <- read_csv(paste(proportions_dir, "CIBERSORTx_Job145_Results_lm22.csv", sep="/"))
+prop_immunoStates <- read_csv(paste(proportions_dir, "CIBERSORTx_Job146_Results_immuno.csv", sep="/"))
+prop_abis <- read_csv(paste(proportions_dir, "CIBERSORTx_Job147_Results_abis.csv", sep="/"))
+```
+
+## Constants
+We identify some constants from the data that are applciable to each of the matrices:
+```{r get.constants}
+n_cell_types <- 6
+n_subjects <- 51
+```
+
+## Data Pre-processing
+Next, we write a series of helper functions to obtain matrices for deconvolution:
+```{r helper.function}
+get_bulk <- function(bulk_df) {
+  # subset the expression and get gene and subject names
+  gene_names = bulk_df$gene
+  bulk_exp_df = bulk_df %>% 
+    select(2:(1 + n_subjects)) 
+  subject_names = colnames(bulk_exp_df) %>% 
+    substr(2, 5)
+  
+  # assemble the matrix
+  mat = data.matrix(bulk_exp_df)
+  rownames(mat) = gene_names
+  colnames(mat) = subject_names
+  return(mat)
+}
+
+#get_bulk(bulk_markers_sd)
+
+get_base <- function(base_df) {
+  gene_names = base_df$gene
+  base_exp_df = base_df %>% 
+    select(2:(1 + n_cell_types))
+  cell_type_names = colnames(base_exp_df)
+  
+  mat = data.matrix(base_exp_df)
+  rownames(mat) = gene_names
+  colnames(mat) = cell_type_names
+  return(mat)
+}
+
+#get_base(base_ABIS_logFC_a2s)
+
+get_prop <- function(prop_df) {
+  subject_names = prop_df$Mixture
+  prop_real_df = prop_df %>% 
+    select(2:(1 + n_cell_types))
+  cell_type_names = colnames(prop_real_df)
+  
+  mat = data.matrix(prop_real_df) %>% t
+  mat = apply(mat, 2, function(x) x/sum(x))
+  rownames(mat) = cell_type_names
+  colnames(mat) = subject_names
+  return(mat)
+}
+
+#get_prop(prop_abis)
+```
+
+With the new functions we get all the 5 bulk matrices prepared:
+```{r bulk.matrices}
+bulk_markers_mat <- get_bulk(bulk_markers_sd)
+bulk_markers_q_mat <- get_bulk(bulk_markers_sd_q) # what we might also want
+bulk_nonmkrs_mat <- get_bulk(bulk_nonmarkers_sd)
+bulk_nonmkrs_q_mat <- get_bulk(bulk_nonmarkers_sd_q) # what we want
+bulk_Z0201_mat <- get_bulk(bulk_Z0201)
+```
+
+Then, we get the proportion:
+```{r prop.matrices}
+prop_abis_mat <- get_prop(prop_abis)
+prop_lm22_mat <- get_prop(prop_lm22)
+prop_immuno_mat <- get_prop(prop_immunoStates)
+prop_tianyi_mat <- get_prop(prop_tianyi)
+
+print(colSums(prop_tianyi_mat)[1:5])
+
+# make a list of the four prop matrices
+prop_ls <- list(prop_abis_mat, prop_lm22_mat, prop_immuno_mat, prop_tianyi_mat)
+```
+
+## Helper Function
+Now we calculate $\hat{\mathbf{G}}_{\rm sub}$ from $\mathbf{M}_{\rm sub}$ (with only nonmarkers at average expression levels) and $\hat{\mathbf{C}}$ obtained from deconvolution and then calculate $\hat{\mathbf{M}}_{\rm sub} = \hat{\mathbf{G}}_{\rm sub}\hat{\mathbf{C}}$.
+
+```{r helper.function2}
+get_M_hat <- function(M_sub, C_hat) {
+  t_G_sub_hat = matrix(0L, nrow=n_cell_types, ncol=nrow(M_sub)) 
+  t_M_sub = t(M_sub)
+  t_C_hat = t(C_hat)
+  
+  # calculate the NNLS solution for each column of C_hat
+  for (j in 1:nrow(M_sub)) {
+    nnls_sol = nnls(t_C_hat, t_M_sub[, j])
+    t_G_sub_hat[, j] = nnls_sol$x
+  }
+  M_sub_hat = t(t_G_sub_hat) %*% C_hat 
+  return(M_sub_hat)
+}
+```
+
+```{r m.hat.list}
+## get a list to store all four M hats from the non-marker genes with middle expression
+M_hat_ls <- lapply(prop_ls, function(x) get_M_hat(bulk_nonmkrs_q_mat, x))
+```
+
+We want another function to process the weight $\mathbf{w} = (w_1, w_2, w_3, w_4)$ of all data. These four weights correspond to `abis`, `lm22`, `immunoStates`, `tianyi`. 
+
+From SCDC, we wish to minimize $\left\| \mathbf{M} - \sum_{r = 1}^4 w_r\hat{\mathbf{M}}_r \right\|_{1, 1}$, with $w_1 + w_2 + w_3 + w_4 = 1$.
+
+```{r ensemble1}
+## helper function to process the errors
+get_error <- function(M, M_hat_ls, wt_vec) {
+  
+  sum = matrix(0L, nrow(M), ncol(M))
+  for (i in 1:length(M_hat_ls)) {
+    sum = sum + wt_vec[i] * M_hat_ls[[i]]
+  }
+  
+  return(sum(abs(M - sum)))
+  
+}
+
+## test the function
+# wt_vec <- rep(0.25, 4)
+# M <- bulk_nonmkrs_q_mat
+# print(get_error(M, M_hat_ls, wt_vec))
+```
+
+
+## Get The Best Combination of Weights
+```{r ensemble2}
+## the M matrix
+M <- bulk_nonmkrs_q_mat
+
+## set the grid
+# w1_vec <- w2_vec <- w3_vec <- c(0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5)
+w1_vec <- w2_vec <- w3_vec <- seq(0, 1, 0.05)
+
+## set the slot for the best set of weights
+wt_best = NULL
+error_best = Inf
+
+for (i in 1:length(w1_vec)) {
+  for (j in 1:length(w2_vec)) {
+    for (k in 1:length(w3_vec)) {
+      
+      w1 <- w1_vec[i]
+      w2 <- w2_vec[j]
+      w3 <- w3_vec[k]
+      w4 <- 1 - (w1 + w2 + w3)
+      
+      if (w4 >= 0) {
+         w_vec <- c(w1, w2, w3, w4)
+         err <- get_error(M, M_hat_ls, w_vec)
+      } else {
+        err = Inf
+      }
+     
+      
+      if (err < error_best) {
+        wt_best <- w_vec
+        error_best <- err
+      }
+      
+    }
+  }
+}
+
+## best error
+print(error_best)
+
+## best weight
+print(wt_best)
+```
+
+
+

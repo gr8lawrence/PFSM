@@ -98,6 +98,7 @@ get_prop <- function(prop_df) {
   cell_type_names = colnames(prop_real_df)
   
   mat = data.matrix(prop_real_df) %>% t
+  mat = apply(mat, 2, function(x) x/sum(x))
   rownames(mat) = cell_type_names
   colnames(mat) = subject_names
   return(mat)
@@ -121,6 +122,8 @@ prop_abis_mat <- get_prop(prop_abis)
 prop_lm22_mat <- get_prop(prop_lm22)
 prop_immuno_mat <- get_prop(prop_immunoStates)
 prop_tianyi_mat <- get_prop(prop_tianyi)
+
+print(colSums(prop_tianyi_mat))
 ```
 
 ## Helper Function
@@ -156,10 +159,84 @@ write_csv(as_tibble(M_hat_lm22), paste(output_dir, "lm22_yhat.csv", sep="/"))
 
 ## immunoStates
 M_hat_immuno <- get_M_hat(bulk_nonmkrs_q_mat, prop_immuno_mat)
-write_csv(as_tibble(M_hat_lm22), paste(output_dir, "immunoStates_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_immuno), paste(output_dir, "immunoStates_yhat.csv", sep="/"))
 
 ## tianyi
 M_hat_tianyi <- get_M_hat(bulk_nonmkrs_q_mat, prop_tianyi_mat)
 write_csv(as_tibble(M_hat_tianyi), paste(output_dir, "tianyi_yhat.csv", sep="/"))
+
+## get SSE
+get_sse <- function(M, M_hat) {
+  return(round(sum((M - M_hat)^2), 4))
+}
+
+print(c(get_sse(bulk_nonmkrs_q_mat, M_hat_abis), 
+        get_sse(bulk_nonmkrs_q_mat, M_hat_lm22),
+        get_sse(bulk_nonmkrs_q_mat, M_hat_immuno),
+        get_sse(bulk_nonmkrs_q_mat, M_hat_tianyi)))
+```
+
+## Output The Rest of The Matrices
+```{r get.other.mhat, eval=FALSE}
+output_dir <- "./Real_data/Junjian_01/output_2"
+
+## abis
+M_hat_abis1 <- get_M_hat(bulk_markers_mat, prop_abis_mat)
+M_hat_abis2 <- get_M_hat(bulk_markers_q_mat, prop_abis_mat)
+M_hat_abis3 <- get_M_hat(bulk_nonmkrs_mat, prop_abis_mat)
+M_hat_abis4 <- get_M_hat(bulk_Z0201_mat, prop_abis_mat)
+
+write_csv(as_tibble(M_hat_abis1), paste(output_dir, "abis_markers_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_abis2), paste(output_dir, "abis_markers_q_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_abis3), paste(output_dir, "abis_nonmkrs_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_abis4), paste(output_dir, "abis_Z0201_yhat.csv", sep="/"))
+
+## lm22
+M_hat_lm221 <- get_M_hat(bulk_markers_mat, prop_lm22_mat)
+M_hat_lm222 <- get_M_hat(bulk_markers_q_mat, prop_lm22_mat)
+M_hat_lm223 <- get_M_hat(bulk_nonmkrs_mat, prop_lm22_mat)
+M_hat_lm224 <- get_M_hat(bulk_Z0201_mat, prop_lm22_mat)
+
+write_csv(as_tibble(M_hat_lm221), paste(output_dir, "lm22_markers_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_lm222), paste(output_dir, "lm22_markers_q_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_lm223), paste(output_dir, "lm22_nonmkrs_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_lm224), paste(output_dir, "lm22_Z0201_yhat.csv", sep="/"))
+
+## immunoStates
+M_hat_immuno1 <- get_M_hat(bulk_markers_mat, prop_immuno_mat)
+M_hat_immuno2 <- get_M_hat(bulk_markers_q_mat, prop_immuno_mat)
+M_hat_immuno3 <- get_M_hat(bulk_nonmkrs_mat, prop_immuno_mat)
+M_hat_immuno4 <- get_M_hat(bulk_Z0201_mat, prop_immuno_mat)
+
+write_csv(as_tibble(M_hat_immuno1), paste(output_dir, "immunoStates_markers_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_immuno2), paste(output_dir, "immunoStates_markers_q_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_immuno3), paste(output_dir, "immunoStates_nonmkrs_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_immuno4), paste(output_dir, "immunoStates_Z0201_yhat.csv", sep="/"))
+
+## tianyi
+M_hat_tianyi1 <- get_M_hat(bulk_markers_mat, prop_tianyi_mat)
+M_hat_tianyi2 <- get_M_hat(bulk_markers_q_mat, prop_tianyi_mat)
+M_hat_tianyi3 <- get_M_hat(bulk_nonmkrs_mat, prop_tianyi_mat)
+M_hat_tianyi4 <- get_M_hat(bulk_Z0201_mat, prop_tianyi_mat)
+
+write_csv(as_tibble(M_hat_tianyi1), paste(output_dir, "tianyi_markers_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_tianyi2), paste(output_dir, "tianyi_markers_q_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_tianyi3), paste(output_dir, "tianyi_nonmkrs_yhat.csv", sep="/"))
+write_csv(as_tibble(M_hat_tianyi4), paste(output_dir, "tianyi_Z0201_yhat.csv", sep="/"))
+```
+
+
+```{r}
+## mean gene-wise correlation
+abis_cor <- colwise_cor(t(bulk_nonmkrs_q_mat), t(M_hat_abis))
+lm22_cor <- colwise_cor(t(bulk_nonmkrs_q_mat), t(M_hat_lm22))
+immuno_cor <- colwise_cor(t(bulk_nonmkrs_q_mat), t(M_hat_immuno))
+tianyi_cor <- colwise_cor(t(bulk_nonmkrs_q_mat), t(M_hat_tianyi))
+
+print(c(round(abis_cor, 4), round(lm22_cor, 4), round(immuno_cor, 4), round(tianyi_cor, 4)))
+```
+
+```{r}
+plot(c(bulk_nonmkrs_q_mat[1:1000]), c(M_hat_abis[1:1000]))
 ```
 
